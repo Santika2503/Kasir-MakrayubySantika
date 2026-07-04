@@ -152,7 +152,6 @@
                     <div class="form-group"><label>Plastik (Pcs)</label><input type="number" id="stok-plastik" class="form-control"></div>
                     <div class="form-group"><label>Kertas (Pcs)</label><input type="number" id="stok-kertas" class="form-control"></div>
                     
-                    <!-- FITUR BARU: NOMINAL AWAL SAKU SOSOKAN -->
                     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #dee2e6;">
                         <div class="form-group">
                             <label style="font-weight: 600; color: var(--purple);">Isi Uang Saku Sosokan (Modal Kembalian Awal)</label>
@@ -246,9 +245,10 @@
         let currentFilter = 'hari';
         let currentTotalBelanja = 0;
 
+        // UPDATE RESEP BERDASARKAN ATURAN BARU
         const resep = {
             Small: { telur: 1, tusuk: 5, saus: 1, plastik: 1, kertas: 1, harga: 8000 },
-            Medium: { telur: 2, tusuk: 10, saus: 2, plastik: 1, kertas: 1, harga: 15000 }
+            Medium: { telur: 2, tusuk: 10, saus: 2, plastik: 1, kertas: 2, harga: 15000 }
         };
 
         window.onload = function() {
@@ -344,7 +344,6 @@
             let peng = 0;
             dataPengeluaran.forEach(p => { if(p.tanggal === tgl) peng += p.nominal; });
 
-            // Akumulasi modal awal laci + hasil pendapatan dari Saku Sosokan hari ini
             let totalLaciSaku = nominalModalSaku + sakuBelanja;
 
             document.getElementById('dash-omzet').innerText = formatRupiah(omzet);
@@ -461,7 +460,6 @@
             document.getElementById('stok-modal-saku').value = nominalModalSaku > 0 ? nominalModalSaku : "";
         }
 
-        // UPDATE SIMPAN STOK BESERTA MODAL AWAL SAKU
         function simpanStok() {
             let tanggalInput = document.getElementById('stok-tanggal').value;
             if(!tanggalInput) { alert("Harap tentukan tanggal pengisian!"); return; }
@@ -472,7 +470,6 @@
             dataStok.plastik = parseInt(document.getElementById('stok-plastik').value) || 0;
             dataStok.kertas = parseInt(document.getElementById('stok-kertas').value) || 0;
             
-            // Simpan nominal modal kas laci awal
             nominalModalSaku = parseInt(document.getElementById('stok-modal-saku').value) || 0;
             
             tanggalStokTerakhir = tanggalInput;
