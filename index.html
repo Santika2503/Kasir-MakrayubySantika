@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+         <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -54,7 +54,7 @@
         .modal.active { display: flex; }
         .modal-content { background: white; border-radius: 12px; padding: 20px; width: 100%; max-width: 400px; }
         .receipt-box { font-family: monospace; font-size: 12px; line-height: 1.4; background: #fff; padding: 10px; border: 1px dashed #6c757d; white-space: pre-wrap; }
-        .filter-bar { display: flex; gap: 5px; margin-bottom: 12px; }
+        .filter-bar { display: flex; gap: 5px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
         .filter-btn { padding: 6px 12px; background: #e9ecef; border: none; border-radius: 20px; font-size: 12px; cursor: pointer; }
         .filter-btn.active { background: var(--primary-dark); color: white; }
         
@@ -171,9 +171,10 @@
         <!-- PENGELUARAN -->
         <div id="page-pengeluaran" class="page">
             <div class="card">
-                <div class="card-title">💸 Tambah Pengeluaran</div>
+                <div class="card-title">💸 Tambah Pengeluaran Harian</div>
                 <form onsubmit="event.preventDefault();">
-                    <div class="form-group"><label>Keterangan</label><input type="text" id="peng-keterangan" class="form-control" placeholder="Beli Minyak, dll"></div>
+                    <div class="form-group"><label>Tanggal Pengeluaran</label><input type="date" id="peng-tanggal" class="form-control"></div>
+                    <div class="form-group"><label>Keterangan</label><input type="text" id="peng-keterangan" class="form-control" placeholder="Beli Minyak, Gas, dll"></div>
                     <div class="grid-2">
                         <div class="form-group"><label>Nominal (Rp)</label><input type="number" id="peng-nominal" class="form-control"></div>
                         <div class="form-group"><label>Kategori</label><select id="peng-kategori" class="form-control"><option value="Belanja">Belanja</option><option value="Transport">Transport</option><option value="Listrik">Listrik</option><option value="Gas">Gas</option><option value="Lainnya">Lainnya</option></select></div>
@@ -181,17 +182,21 @@
                     <button type="button" class="btn btn-primary" style="width: 100%; margin-top: 5px;" onclick="simpanPengeluaran()">Simpan Pengeluaran</button>
                 </form>
             </div>
-            <div class="card"><div class="card-title">📋 Pengeluaran Hari Ini</div><div id="daftar-pengeluaran-list"></div></div>
+            <div class="card"><div class="card-title">📋 Pengeluaran Pada Tanggal Terpilih</div><div id="daftar-pengeluaran-list"></div></div>
         </div>
 
         <!-- RIWAYAT & LAPORAN -->
         <div id="page-riwayat" class="page">
             <div class="card">
                 <div class="card-title">🕰️ Riwayat Penjualan</div>
+                
                 <div class="filter-bar">
                     <button class="filter-btn active" id="fltr-hari" onclick="setFilter('hari')">Hari Ini</button>
+                    <button class="filter-btn" id="fltr-tanggal" onclick="setFilter('tanggal')">Pilih Tanggal:</button>
+                    <input type="date" id="riwayat-filter-date" class="form-control" style="width: 140px; padding: 4px 8px; font-size: 12px; display: inline-block;" onchange="tabelTanggalDipilih()">
                     <button class="filter-btn" id="fltr-semua" onclick="setFilter('semua')">Semua</button>
                 </div>
+                
                 <div id="riwayat-list"></div>
             </div>
             <div class="card">
@@ -245,7 +250,6 @@
         let currentFilter = 'hari';
         let currentTotalBelanja = 0;
 
-        // UPDATE RESEP BERDASARKAN ATURAN BARU
         const resep = {
             Small: { telur: 1, tusuk: 5, saus: 1, plastik: 1, kertas: 1, harga: 8000 },
             Medium: { telur: 2, tusuk: 10, saus: 2, plastik: 1, kertas: 2, harga: 15000 }
@@ -261,6 +265,7 @@
             document.getElementById('jual-qty').addEventListener('input', hitungTransaksi);
             document.getElementById('jual-diterima').addEventListener('input', hitungSosokan);
             document.getElementById('jual-bayar').addEventListener('change', hitungSosokan);
+            document.getElementById('peng-tanggal').addEventListener('change', renderPengeluaran);
             
             initClock();
             refreshAll();
@@ -283,12 +288,10 @@
 
         function initClock() {
             let hariIni = new Date().toISOString().split('T')[0];
-            if (!document.getElementById('jual-tanggal').value) {
-                document.getElementById('jual-tanggal').value = hariIni;
-            }
-            if (!document.getElementById('stok-tanggal').value) {
-                document.getElementById('stok-tanggal').value = hariIni;
-            }
+            if (!document.getElementById('jual-tanggal').value) document.getElementById('jual-tanggal').value = hariIni;
+            if (!document.getElementById('stok-tanggal').value) document.getElementById('stok-tanggal').value = hariIni;
+            if (!document.getElementById('peng-tanggal').value) document.getElementById('peng-tanggal').value = hariIni;
+            if (!document.getElementById('riwayat-filter-date').value) document.getElementById('riwayat-filter-date').value = hariIni;
             
             setInterval(() => {
                 let now = new Date();
@@ -469,7 +472,6 @@
             dataStok.saus = parseInt(document.getElementById('stok-saus').value) || 0;
             dataStok.plastik = parseInt(document.getElementById('stok-plastik').value) || 0;
             dataStok.kertas = parseInt(document.getElementById('stok-kertas').value) || 0;
-            
             nominalModalSaku = parseInt(document.getElementById('stok-modal-saku').value) || 0;
             
             tanggalStokTerakhir = tanggalInput;
@@ -478,11 +480,12 @@
         }
 
         function simpanPengeluaran() {
+            let tgl = document.getElementById('peng-tanggal').value;
             let ket = document.getElementById('peng-keterangan').value;
             let nom = parseInt(document.getElementById('peng-nominal').value) || 0;
-            if(!ket || nom <= 0) { alert("Isi keterangan & nominal!"); return; }
+            if(!tgl || !ket || nom <= 0) { alert("Isi tanggal, keterangan & nominal pengeluaran!"); return; }
 
-            dataPengeluaran.push({ id: Date.now(), tanggal: new Date().toISOString().split('T')[0], keterangan: ket, nominal: nom, kategori: document.getElementById('peng-kategori').value });
+            dataPengeluaran.push({ id: Date.now(), tanggal: tgl, keterangan: ket, nominal: nom, kategori: document.getElementById('peng-kategori').value });
             document.getElementById('peng-keterangan').value = "";
             document.getElementById('peng-nominal').value = "";
             refreshAll();
@@ -490,23 +493,63 @@
 
         function renderPengeluaran() {
             let div = document.getElementById('daftar-pengeluaran-list'); div.innerHTML = "";
-            let tgl = new Date().toISOString().split('T')[0];
-            dataPengeluaran.filter(p => p.tanggal === tgl).forEach(p => {
+            let tglDipilih = document.getElementById('peng-tanggal').value;
+            
+            let filtered = dataPengeluaran.filter(p => p.tanggal === tglDipilih);
+            if(filtered.length === 0) {
+                div.innerHTML = `<div style="text-align:center; padding:10px; color:#6c757d;">Tidak ada pengeluaran pada tanggal ini.</div>`;
+                return;
+            }
+
+            filtered.forEach(p => {
                 div.innerHTML += `<div class="list-item"><div><b>${p.keterangan}</b><br><small>${p.kategori}</small></div><span style="color:var(--danger)">-${formatRupiah(p.nominal)}</span></div>`;
             });
         }
 
-        function setFilter(f) { currentFilter = f; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); document.getElementById('fltr-'+f).classList.add('active'); renderRiwayat(); }
+        function setFilter(f) { 
+            currentFilter = f; 
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); 
+            document.getElementById('fltr-'+f).classList.add('active'); 
+            
+            if(f === 'tanggal') {
+                tabelTanggalDipilih();
+            } else {
+                renderRiwayat();
+            }
+        }
+
+        function tabelTanggalDipilih() {
+            currentFilter = 'tanggal';
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); 
+            document.getElementById('fltr-tanggal').classList.add('active');
+            renderRiwayat();
+        }
 
         function renderRiwayat() {
             let div = document.getElementById('riwayat-list'); div.innerHTML = "";
-            let tgl = new Date().toISOString().split('T')[0];
-            let list = dataPenjualan.filter(j => currentFilter === 'semua' || j.tanggal === tgl);
+            let hariIni = new Date().toISOString().split('T')[0];
+            let tanggalTarget = document.getElementById('riwayat-filter-date').value;
             
-            let omzet = 0, tTunai = 0, tQris = 0, tSaku = 0, peng = 0, pSmall = 0, pMed = 0;
+            let list = [];
+            let teksTanggalLaporan = "";
+
+            if (currentFilter === 'hari') {
+                list = dataPenjualan.filter(j => j.tanggal === hariIni);
+                teksTanggalLaporan = hariIni;
+            } else if (currentFilter === 'tanggal') {
+                list = dataPenjualan.filter(j => j.tanggal === tanggalTarget);
+                teksTanggalLaporan = tanggalTarget;
+            } else {
+                list = dataPenjualan;
+                teksTanggalLaporan = "Semua Periode Data";
+            }
+            
+            let omzet = 0, tTunai = 0, tQris = 0, tSaku = 0, peng = 0;
+            let smTunai = 0, smQris = 0, smTotalUang = 0;
+            let mdTunai = 0, mdQris = 0, mdTotalUang = 0;
             
             if(list.length === 0) {
-                div.innerHTML = `<div style="text-align:center; padding:10px; color:#6c757d;">Belum ada riwayat transaksi.</div>`;
+                div.innerHTML = `<div style="text-align:center; padding:10px; color:#6c757d;">Belum ada riwayat transaksi untuk filter ini.</div>`;
             }
 
             let listDibalik = [...list].reverse();
@@ -516,7 +559,16 @@
                 if(j.pembayaran === 'Tunai') tTunai += j.total;
                 if(j.pembayaran === 'QRIS') tQris += j.total;
                 if(j.pembayaran === 'Saku Sosokan') tSaku += j.total;
-                if(j.menu === 'Small') pSmall += j.qty; else pMed += j.qty;
+                
+                if(j.menu === 'Small') {
+                    smTotalUang += j.total;
+                    if(j.pembayaran === 'Tunai') smTunai += j.qty;
+                    if(j.pembayaran === 'QRIS') smQris += j.qty;
+                } else if(j.menu === 'Medium') {
+                    mdTotalUang += j.total;
+                    if(j.pembayaran === 'Tunai') mdTunai += j.qty;
+                    if(j.pembayaran === 'QRIS') mdQris += j.qty;
+                }
                 
                 let bad = 'bg-tunai';
                 if(j.pembayaran === 'QRIS') bad = 'bg-qris';
@@ -536,17 +588,32 @@
                     </div>`;
             });
 
-            dataPengeluaran.filter(p => currentFilter === 'semua' || p.tanggal === tgl).forEach(p => peng += p.nominal);
+            if (currentFilter === 'hari') {
+                dataPengeluaran.filter(p => p.tanggal === hariIni).forEach(p => peng += p.nominal);
+            } else if (currentFilter === 'tanggal') {
+                dataPengeluaran.filter(p => p.tanggal === tanggalTarget).forEach(p => peng += p.nominal);
+            } else {
+                dataPengeluaran.forEach(p => peng += p.nominal);
+            }
             
+            // MASUK SAKU SOSOKAN HILANG DARI TULISAN RINGKASAN ATAS
             document.getElementById('laporan-content').innerHTML = `
+                <div style="text-align: center; font-weight: bold; font-size: 13px; margin-bottom: 2px; color: var(--primary-dark);">TELUR GULUNG CABANG ALFAMART MAKRAYU BY SANTIKA</div>
+                <div style="text-align: center; font-size: 11px; color: #6c757d; margin-bottom: 12px; border-bottom: 1px dashed #ced4da; padding-bottom: 6px;">Periode: ${teksTanggalLaporan}</div>
                 Total Omzet: <b>${formatRupiah(omzet)}</b><br>
                 • Masuk Tunai: ${formatRupiah(tTunai)}<br>
                 • Masuk QRIS: ${formatRupiah(tQris)}<br>
-                • Masuk Saku Sosokan (Penjualan): ${formatRupiah(tSaku)}<br>
                 • Modal Kas Awal Saku: ${formatRupiah(nominalModalSaku)}<br>
-                Total Pengeluaran: <b>${formatRupiah(peng)}</b><br>
-                Laba Bersih: <b>${formatRupiah(omzet - peng)}</b><br>
-                Total Small: ${pSmall} Porsi | Total Medium: ${pMed} Porsi
+                Total Pengeluaran Sesuai Filter: <b>${formatRupiah(peng)}</b><br>
+                Laba Bersih Sesuai Filter: <b>${formatRupiah(omzet - peng)}</b><br>
+                <hr style="margin: 8px 0; border: none; border-top: 1px dashed #ced4da;">
+                📊 <b>Rincian Menu & Metode Bayar Terjual:</b><br>
+                📦 <b>Paket Small (Total Uang: ${formatRupiah(smTotalUang)}):</b><br>
+                &nbsp;&nbsp;&nbsp;- Tunai: ${smTunai} Porsi<br>
+                &nbsp;&nbsp;&nbsp;- QRIS: ${smQris} Porsi<br>
+                📦 <b>Paket Medium (Total Uang: ${formatRupiah(mdTotalUang)}):</b><br>
+                &nbsp;&nbsp;&nbsp;- Tunai: ${mdTunai} Porsi<br>
+                &nbsp;&nbsp;&nbsp;- QRIS: ${mdQris} Porsi<br>
             `;
         }
 
@@ -646,3 +713,4 @@
     </script>
 </body>
 </html>
+             
